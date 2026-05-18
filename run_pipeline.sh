@@ -11,7 +11,7 @@ echo "===================================================="
 if [ ! -f "models/cb.cbm" ] || [ ! -f "models/tfidf_vectorizer.pkl" ]; then
     echo "⚠️ Модели CatBoost/TF-IDF не найдены. Запускаем обучение..."
     # Подставь сюда имя своего скрипта, который обучает CatBoost
-    python pipelines/train_catboost.py 
+    python3 pipelines/train_catboost.py 
 else
     echo "✅ CatBoost и TF-IDF уже обучены. Пропускаем."
 fi
@@ -19,14 +19,14 @@ fi
 # 2. Проверяем наличие весов и конфига ансамбля
 if [ ! -f "models/metrics.json" ]; then
     echo "⚠️ Конфиг ансамбля не найден. Считаем веса Softmax через BERT..."
-    python pipelines/weights_calc.py
+    python3 pipelines/weights_calc.py
 else
     echo "✅ Веса ансамбля уже рассчитаны. Пропускаем."
 fi
 
 # 3. Рассчитываем оптимальные пороги для каскада (cb_threshold и llm_threshold)
 echo "🔍 Оптимизируем пороги уверенности на тест-сете..."
-python pipelines/optimize_thresholds.py
+python3 pipelines/optimized_threshold.py
 
 echo "===================================================="
 echo "🎉 ВСЕ МОДЕЛИ ГОТОВЫ И ПОРОГИ РАССЧИТАНЫ!"
@@ -34,4 +34,4 @@ echo "===================================================="
 
 # 4. Запускаем главный скрипт инференса / веб-сервер
 echo "🤖 Запускаем финальный каскадный прогноз..."
-python pipelines/test.py
+python3 test.py
