@@ -1,13 +1,21 @@
 FROM python:3.10-slim
 
-WORKDIR /tz_sber
+WORKDIR /app
+
+# Устанавливаем системные утилиты (нужны для сборки библиотек)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-
-# ХИТРОСТЬ: Ставим облегченную CPU-версию PyTorch прямо из официального репозитория
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Копируем весь проект
 COPY . .
 
-CMD ["python", "main.py"]
+# ⚠️ ВАЖНО: Даем права на запуск внутри контейнера на всякий случай
+RUN chmod +x run_pipeline.sh
+
+# Точка входа теперь — наш цепочечный скрипт
+CMD ["./run_pipeline.sh"]
