@@ -68,6 +68,9 @@ X_test = tfidf.transform(X_test_text).toarray()
 
 logger.info("Применение TF-IDF")
 
+
+#Подбор гиперпараметров для CatBoost
+
 def objective(trial):
     
     params = {
@@ -108,8 +111,8 @@ best_params['verbose'] = 100
 model = cb.CatBoostClassifier(**best_params)
 model.fit(X_train, y_train, eval_set=(X_test, y_test), early_stopping_rounds=50)
 
-final_preds = model.predict(X_test)
-#print(classification_report(y_test, final_preds)) 
+
+#сохранение модели CB и модели tf-idf
 
 model.save_model('models/cb.cbm')
 joblib.dump(tfidf, 'models/tfidf_vectorizer.pkl')

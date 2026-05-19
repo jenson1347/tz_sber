@@ -39,7 +39,7 @@ class HybridPredictor:
         self.catboost.load_model(catboost_path)
         self.tfidf = joblib.load(tfidf_path)
         
-        # 2. Загружаем энкодер тегов (чтобы возвращать текст вместо цифр)
+        # 2. Загружаем label encoder (чтобы возвращать текст вместо цифр)
         self.le = joblib.load(le_path)
         self.all_intents = list(self.le.classes_)
         
@@ -50,7 +50,7 @@ class HybridPredictor:
         
         
         
-        logger.info("🔥 Все локальные модели загружены! Система готова к работе.")
+        logger.info("Все локальные модели загружены")
 
     def predict(self, text, threshold=0.80, expert_intents=None):
         """
@@ -65,7 +65,7 @@ class HybridPredictor:
         cb_weight=self.cb_w 
         bert_weight=self.bert_w
         
-        # --- ШАГ 1: ПОЛУЧЕНИЕ ВЕРОЯТНОСТЕЙ ОТ CATBOOST ---
+        # Шаг 1: получение вероятностей catboost
         
         text_tfidf = self.tfidf.transform([text])
         cb_probs = self.catboost.predict_proba(text_tfidf)[0]
@@ -74,7 +74,7 @@ class HybridPredictor:
         cb_confidence = cb_probs[cb_best_class_idx]
         cb_intent_text = self.le.inverse_transform([cb_best_class_idx])[0]
         
-        # --- ШАГ 2: ПРОВЕРКА ЭКСПЕРТНОГО ПРАВИЛА (ИНСАЙТ) ---
+        # Шаг 2: проверка увероенности классификатора cb + проверка заполнености данных (существуют ли интенты и список с ними)
         if expert_intents and cb_intent_text in expert_intents and cb_confidence > 0.50:
             return {
                 "intent": cb_intent_text,
@@ -83,7 +83,8 @@ class HybridPredictor:
                 "local_f1_saved": True
             }
             
-        # --- ШАГ 3: ПОЛУЧЕНИЕ ВЕРОЯТНОСТЕЙ ОТ BERT ---
+        # Шаг 3: получение вероятностей BERT
+        
         inputs = self.bert_tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=128)
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
         
@@ -91,13 +92,13 @@ class HybridPredictor:
             outputs = self.bert_model(**inputs)
             bert_probs = F.softmax(outputs.logits, dim=-1).cpu().numpy()[0]
             
-        # --- ШАГ 4: БЛЕНДИНГ (УСРЕДНЕНИЕ) ВЕРОЯТНОСТЕЙ ---
+        # Шаг 4: блендинг
         final_probs = (cb_probs * cb_weight) + (bert_probs * bert_weight)
         ensemble_class_idx = np.argmax(final_probs)
         ensemble_confidence = final_probs[ensemble_class_idx]
         ensemble_intent_text = self.le.inverse_transform([ensemble_class_idx])[0]
         
-        # --- ШАГ 5: ПРОВЕРКА ПОРОГА И ВЫЗОВ ВНЕШНЕЙ LLM (GIGACHAT) ---
+        # Шаг 5: проверка порога вызова LLM
         if ensemble_confidence < 0.40 and self.llm_service is not None:
             logger.warning(f"Низкая уверенность ансамбля ({ensemble_confidence:.2%}). Подключаем LLM...")
             
